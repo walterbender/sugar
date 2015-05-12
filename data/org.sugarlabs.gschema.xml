@@ -157,6 +157,11 @@
             <summary>Publish to Gadget</summary>
             <description>If TRUE, Sugar will make us searchable for the other users of the Jabber server.</description>
         </key>
+        <key name="social-help-server" type="s">
+            <default>'https://use-socialhelp.sugarlabs.org'</default>
+            <summary>Social Help Server</summary>
+            <description>URL of the social help server to use with protocol.</description>
+        </key>
     </schema>
     <schema id="org.sugarlabs.power" path="/org/sugarlabs/power/">
         <key name="automatic" type="b">
@@ -294,6 +299,11 @@
             <default>0</default>
             <summary>Timestamp of last activity update.</summary>
             <description>A unix timestamp (seconds since epoch) of the last successful activity update.</description>
+        </key>
+        <key name="new-aslo-url" type="s">
+            <default>'http://activities-2.sugarlabs.org/update.json'</default>
+            <summary>New ASLO update.json URL.</summary>
+            <description>URL used by the new ASLO updater to download activity data.</description>
         </key>
     </schema>
     <schema id="org.sugarlabs.extensions" path="/org/sugarlabs/extensions/">

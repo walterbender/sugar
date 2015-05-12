@@ -77,6 +77,7 @@ class Activity(GObject.GObject):
 
         self._windows = []
         self._service = None
+        self._shell_windows = []
         self._activity_id = activity_id
         self._activity_info = activity_info
         self._launch_time = time.time()
@@ -120,6 +121,17 @@ class Activity(GObject.GObject):
         if is_main_window:
             window.connect('state-changed', self._state_changed_cb)
 
+    def push_shell_window(self, window):
+        """Attach a shell run window (eg. view source) to the activity."""
+        self._shell_windows.append(window)
+
+    def pop_shell_window(self, window):
+        """
+        Detach a shell run window (eg. view source) to the activity.
+        Only call this on **user initiated** deletion (loop issue).
+        """
+        self._shell_windows.remove(window)
+
     def stop(self):
         # For web activities the Apisocket will connect to the 'stop'
         # signal, thus preventing the window close.  Then, on the
@@ -130,7 +142,11 @@ class Activity(GObject.GObject):
             self.close_window()
 
     def close_window(self):
-        self.get_window().close(GLib.get_current_time())
+        if self.get_window() is not None:
+            self.get_window().close(GLib.get_current_time())
+
+        for w in self._shell_windows:
+            w.destroy()
 
     def remove_window_by_xid(self, xid):
         """Remove a window from the windows stack."""
@@ -413,6 +429,8 @@ class ShellModel(GObject.GObject):
         self._maximum_open_activities = settings.get_int(
             'maximum-number-of-open-activities')
 
+        self._launch_timers = {}
+
     def get_launcher(self, activity_id):
         return self._launchers.get(str(activity_id))
 
@@ -629,6 +647,7 @@ class ShellModel(GObject.GObject):
                 if activity.get_window() is None:
                     logging.debug('last window gone - remove activity %s',
                                   activity)
+                    activity.close_window()
                     self._remove_activity(activity)
 
     def _get_activity_by_xid(self, xid):
@@ -715,10 +734,13 @@ class ShellModel(GObject.GObject):
 
         self.emit('launch-started', home_activity)
 
-        # FIXME: better learn about finishing processes by receiving a signal.
-        # Now just check whether an activity has a window after ~90sec
-        GObject.timeout_add_seconds(90, self._check_activity_launched,
-                                    activity_id)
+        if activity_id in self._launch_timers:
+            GObject.source_remove(self._launch_timers[activity_id])
+            del self._launch_timers[activity_id]
+
+        timer = GObject.timeout_add_seconds(90, self._check_activity_launched,
+                                            activity_id)
+        self._launch_timers[activity_id] = timer
 
     def notify_launch_failed(self, activity_id):
         home_activity = self.get_activity_by_id(activity_id)
@@ -735,6 +757,7 @@ class ShellModel(GObject.GObject):
                           activity_id)
 
     def _check_activity_launched(self, activity_id):
+        del self._launch_timers[activity_id]
         home_activity = self.get_activity_by_id(activity_id)
 
         if not home_activity:
